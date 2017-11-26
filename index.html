@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Peta Distribusi | Juco</title>
+  <script src="https://unpkg.com/vue"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.42.2/mapbox-gl.js'></script>
+  <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.42.2/mapbox-gl.css' rel='stylesheet' />
+  <style>
+    #map {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%
+    }
+  </style>
+</head>
+
+<body>
+  <div id='app'>
+    <div id='map'></div>
+      
+    <ul>
+      <li v-for="data in list">
+        Kota: {{ data.city }}
+        <div v-for="fish in data.fishes">
+            <div>Jenis ikan: {{ fish.type }}</div>
+            <div>harga: {{ fish.price }}</div>
+        </div>
+      </li>
+    </ul>
+  </div>
+  <script>
+    window.onload = async function() {
+      // VueJS
+      var app = new Vue({
+        el: '#app',
+        data: {
+          list: [],
+          loaded: true
+        }
+      })
+
+      // Set config defaults when creating the instance
+      var axiosInstance = axios.create({
+        baseURL: 'http://localhost:3333'
+      });
+
+      let datas = []
+      try {
+        let response = await axiosInstance.get('/data')
+        datas = response.data
+      } catch (error) {
+        console.log(error);
+      }
+
+      // construct geojson for fish data
+      let geojson = {
+        'type': 'FeatureCollection',
+        'features': []
+      }
+      datas.map(data => {
+        geojson.features.push({
+          'type': 'Feature',
+          'geometry': {
+            'type': 'Point',
+            'coordinates': [data.coordinate.lng, data.coordinate.lat]
+          },
+          'properties': {
+            'data': data
+          }
+        })
+      })      
+
+
+      // Mapbox GL
+      mapboxgl.accessToken = 'pk.eyJ1IjoibXNtYXJvbWkiLCJhIjoiY2phZmNnYWo3MTJ0MTJ4cXVnaWI3MjZiZyJ9.Me5r8n2Qw3jNEmSzNMqF4Q';
+      var map = new mapboxgl.Map({
+          container: 'map',
+          style: 'mapbox://styles/mapbox/light-v9',
+          zoom: 4,
+          center: [118.9689526, -1.6508169]
+      });
+
+      map.on('load', function () {
+
+        map.addLayer({
+            "id": "fishes",
+            "type": "circle",
+            "source": {
+                "type": "geojson",
+                "data": geojson
+            },
+            'paint': {
+              'circle-radius': 10,              
+              'circle-color': 'orange',
+              'circle-opacity': 0.5
+            }
+        });
+
+        // When a click event occurs on a feature in the places layer, open a popup at the
+        // location of the feature, with description HTML from its properties.
+        map.on('click', 'fishes', function (e) {
+          let data = JSON.parse(e.features[0].properties.data)
+          let html =  '<div>' +
+                        '<div>' + data.city + '</div>' +
+                        '<table>' +
+                          '<tr>' +
+                            '<th>Jenis</th>' +
+                            '<th>Harga</th>' +
+                          '</tr>' +
+                            data.fishes.map(fish => {
+                              return (
+                                '<tr>' +
+                                  '<td>' + fish.type + '</td>' +
+                                  '<td>' + fish.price + '</td>' +
+                                '</tr>'
+                              )
+                            }).join('') +
+                        '</table>' +
+                      '</div>'
+          new mapboxgl.Popup()
+              .setLngLat(e.features[0].geometry.coordinates)
+              .setHTML(html)
+              .addTo(map);
+        });
+
+        // Change the cursor to a pointer when the mouse is over the places layer.
+        map.on('mouseenter', 'fishes', function () {
+            map.getCanvas().style.cursor = 'pointer';
+        });
+
+        // Change it back to a pointer when it leaves.
+        map.on('mouseleave', 'fishes', function () {
+            map.getCanvas().style.cursor = '';
+        });
+    });
+    }
+  </script>
+</body>
+
+</html>
