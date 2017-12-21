@@ -6,6 +6,7 @@
   "dependencies": {
     "@google/maps": "^0.4.5",
     "express": "^4.16.2",
+    "mongoose": "^4.13.7",
     "redis": "^2.8.0",
     "request": "^2.83.0",
     "server": "^1.0.5"
